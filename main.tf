@@ -6,6 +6,7 @@ data "template_file" "user_data" {
     bucket_name             = var.bucket_name
     extra_user_data_content = var.extra_user_data_content
     allow_ssh_commands      = var.allow_ssh_commands
+    public_ssh_port         = var.public_ssh_port
   }
 }
 
@@ -14,13 +15,13 @@ resource "aws_kms_key" "key" {
 }
 
 resource "aws_kms_alias" "alias" {
-  name          = "alias/${var.bucket_name}"
+  name          = "alias/${replace(var.bucket_name, ".", "_")}"
   target_key_id = aws_kms_key.key.arn
 }
 
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
-  acl    = "bucket-owner-full-control"
+  acl    = "private"
 
   server_side_encryption_configuration {
     rule {
@@ -103,6 +104,7 @@ resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
 }
 
 resource "aws_security_group" "bastion_host_security_group" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Enable SSH access to the bastion host from external via SSH port"
   name        = "${local.name_prefix}-host"
   vpc_id      = var.vpc_id
@@ -111,6 +113,7 @@ resource "aws_security_group" "bastion_host_security_group" {
 }
 
 resource "aws_security_group_rule" "ingress_bastion" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Incoming traffic to bastion"
   type        = "ingress"
   from_port   = var.public_ssh_port
@@ -118,10 +121,11 @@ resource "aws_security_group_rule" "ingress_bastion" {
   protocol    = "TCP"
   cidr_blocks = concat(data.aws_subnet.subnets.*.cidr_block, var.cidrs)
 
-  security_group_id = aws_security_group.bastion_host_security_group.id
+  security_group_id = local.security_group
 }
 
 resource "aws_security_group_rule" "egress_bastion" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Outgoing traffic from bastion to instances"
   type        = "egress"
   from_port   = "0"
@@ -129,7 +133,7 @@ resource "aws_security_group_rule" "egress_bastion" {
   protocol    = "-1"
   cidr_blocks = ["0.0.0.0/0"]
 
-  security_group_id = aws_security_group.bastion_host_security_group.id
+  security_group_id = local.security_group
 }
 
 resource "aws_security_group" "private_instances_security_group" {
@@ -143,11 +147,11 @@ resource "aws_security_group" "private_instances_security_group" {
 resource "aws_security_group_rule" "ingress_instances" {
   description = "Incoming traffic from bastion"
   type        = "ingress"
-  from_port   = var.public_ssh_port
-  to_port     = var.public_ssh_port
+  from_port   = var.private_ssh_port
+  to_port     = var.private_ssh_port
   protocol    = "TCP"
 
-  source_security_group_id = aws_security_group.bastion_host_security_group.id
+  source_security_group_id = local.security_group
 
   security_group_id = aws_security_group.private_instances_security_group.id
 }
@@ -212,7 +216,7 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
 }
 
 resource "aws_iam_policy" "bastion_host_policy" {
-  name_prefix   = "BastionHost"
+  name   = var.bastion_iam_policy_name
   policy = data.aws_iam_policy_document.bastion_host_policy_document.json
 }
 
@@ -279,13 +283,13 @@ resource "aws_iam_instance_profile" "bastion_host_profile" {
 resource "aws_launch_template" "bastion_launch_template" {
   name_prefix   = local.name_prefix
   image_id      = var.bastion_ami != "" ? var.bastion_ami : data.aws_ami.amazon-linux-2.id
-  instance_type = "t3.nano"
+  instance_type = var.instance_type
   monitoring {
     enabled = true
   }
   network_interfaces {
     associate_public_ip_address = var.associate_public_ip_address
-    security_groups             = [aws_security_group.bastion_host_security_group.id]
+    security_groups             = concat([local.security_group], var.bastion_additional_security_groups)
     delete_on_termination       = true
   }
   iam_instance_profile {
@@ -342,4 +346,6 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
   lifecycle {
     create_before_destroy = true
   }
+
+  depends_on = [aws_s3_bucket.bucket]
 }

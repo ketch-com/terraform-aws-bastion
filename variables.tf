@@ -61,6 +61,17 @@ variable "bastion_launch_template_name" {
   default     = "bastion-lt"
 }
 
+variable "bastion_security_group_id" {
+  description = "Custom security group to use"
+  default     = ""
+}
+
+variable "bastion_additional_security_groups" {
+  description = "List of additional security groups to attach to the launch template"
+  type        = list(string)
+  default     = []
+}
+
 variable "bastion_ami" {
   type        = string
   description = "The AMI that the Bastion Host will use."
@@ -129,6 +140,16 @@ variable "allow_ssh_commands" {
   description = "Allows the SSH user to execute one-off commands. Pass 'True' to enable. Warning: These commands are not logged and increase the vulnerability of the system. Use at your own discretion."
   type        = string
   default     = ""
+}
+
+variable "bastion_iam_policy_name" {
+  description = "IAM policy name to create for granting the instance role access to the bucket"
+  default     = "BastionHost"
+}
+
+variable "instance_type" {
+  description = "Instance size of the bastion"
+  default     = "t3.nano"
 }
 
 variable "cross_zone_lb" {
