@@ -188,8 +188,8 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
 }
 
 resource "aws_iam_policy" "bastion_host_policy" {
-  name_prefix   = var.bastion_iam_policy_name
-  policy = data.aws_iam_policy_document.bastion_host_policy_document.json
+  name_prefix = var.bastion_iam_policy_name
+  policy      = data.aws_iam_policy_document.bastion_host_policy_document.json
 }
 
 resource "aws_iam_role_policy_attachment" "bastion_host" {
