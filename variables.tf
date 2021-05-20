@@ -16,6 +16,12 @@ variable "bucket_force_destroy" {
   description = "The bucket and all objects should be destroyed when using true"
 }
 
+variable "bucket_logging" {
+  description = "Map containing access logging configuration for the log bucket"
+  type        = map(string)
+  default     = {}
+}
+
 variable "tags" {
   description = "A mapping of tags to assign"
   default     = {}
