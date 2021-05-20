@@ -66,6 +66,15 @@ resource "aws_s3_bucket" "bucket" {
   }
 
   tags = merge(var.tags)
+
+  dynamic "logging" {
+    for_each = length(keys(var.bucket_logging)) == 0 ? [] : [var.bucket_logging]
+
+    content {
+      target_bucket = logging.value.target_bucket
+      target_prefix = lookup(logging.value, "target_prefix", null)
+    }
+  }
 }
 
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
