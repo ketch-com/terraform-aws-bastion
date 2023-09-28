@@ -2,6 +2,10 @@ variable "bucket_name" {
   description = "Bucket name were the bastion will store the logs"
 }
 
+variable "service_user_arn" {
+  description = "user arn location bucket policy"
+}
+
 variable "bucket_versioning" {
   default     = true
   description = "Enable bucket versioning or not"
