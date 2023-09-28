@@ -77,6 +77,34 @@ resource "aws_s3_bucket" "bucket" {
   }
 }
 
+resource "aws_s3_bucket_policy" "github_bucket_policy" {
+  bucket = aws_s3_bucket.bucket.arn
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowReadWriteAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "${var.service_user_arn}"
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::${aws_s3_bucket.bucket.name}",
+        "arn:aws:s3:::${aws_s3_bucket.bucket.name}/*",
+      ]
+    }
+  ]
+}
+EOF
+}
+
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
   bucket     = aws_s3_bucket.bucket.id
   key        = "public-keys/README.txt"
