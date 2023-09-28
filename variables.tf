@@ -3,7 +3,7 @@ variable "bucket_name" {
 }
 
 variable "service_user_arn" {
-  description = "user arn location bucket policy"
+  description = "user access adding to bucket policy"
 }
 
 variable "bucket_versioning" {
