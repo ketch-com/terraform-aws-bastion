@@ -96,7 +96,7 @@ resource "aws_s3_bucket_policy" "github_bucket_policy" {
       ],
       "Resource": [
         "arn:aws:s3:::${aws_s3_bucket.bucket.id}",
-        "arn:aws:s3:::${aws_s3_bucket.bucket.id}/*",
+        "arn:aws:s3:::${aws_s3_bucket.bucket.id}/*"
       ]
     }
   ]
