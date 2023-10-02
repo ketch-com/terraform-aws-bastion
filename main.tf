@@ -79,7 +79,6 @@ resource "aws_s3_bucket" "bucket" {
 
 resource "aws_s3_bucket_policy" "github_bucket_policy" {
   bucket = aws_s3_bucket.bucket.arn
-
   policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -96,8 +95,8 @@ resource "aws_s3_bucket_policy" "github_bucket_policy" {
         "s3:ListBucket"
       ],
       "Resource": [
-        "arn:aws:s3:::${aws_s3_bucket.bucket.name}",
-        "arn:aws:s3:::${aws_s3_bucket.bucket.name}/*",
+        "arn:aws:s3:::${aws_s3_bucket.bucket.id}",
+        "arn:aws:s3:::${aws_s3_bucket.bucket.id}/*"
       ]
     }
   ]
@@ -105,6 +104,7 @@ resource "aws_s3_bucket_policy" "github_bucket_policy" {
 EOF
 }
 
+##
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
   bucket     = aws_s3_bucket.bucket.id
   key        = "public-keys/README.txt"
