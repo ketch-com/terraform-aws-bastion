@@ -78,7 +78,7 @@ resource "aws_s3_bucket" "bucket" {
 }
 
 resource "aws_s3_bucket_policy" "github_bucket_policy" {
-  bucket = aws_s3_bucket.bucket.arn
+  bucket = var.bucket_name
   policy = <<EOF
 {
   "Version": "2012-10-17",
