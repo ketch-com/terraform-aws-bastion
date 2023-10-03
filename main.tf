@@ -78,31 +78,31 @@ resource "aws_s3_bucket" "bucket" {
 }
 
 resource "aws_s3_bucket_policy" "github_bucket_policy" {
-  bucket = aws_s3_bucket.bucket.arn
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AllowReadWriteAccess",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "${var.service_user_arn}"
-      },
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "${aws_s3_bucket.bucket.arn}",
-        "${aws_s3_bucket.bucket.arn}/*"
-      ]
-    }
-  ]
+  bucket = aws_s3_bucket.bucket.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AllowReadWriteAccess",
+        Effect    = "Allow",
+        Principal = {
+          AWS = var.service_user_arn
+        },
+        Action    = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ],
+        Resource  = [
+          "${aws_s3_bucket.bucket.arn}",
+          "${aws_s3_bucket.bucket.arn}/*"
+        ]
+      }
+    ]
+  })
 }
-EOF
-}
+
 
 ##
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
