@@ -95,7 +95,7 @@ resource "aws_s3_bucket_policy" "github_bucket_policy" {
           "s3:ListBucket"
         ],
         Resource  = [
-          "${aws_s3_bucket.bucket.arn}",
+          aws_s3_bucket.bucket.arn,
           "${aws_s3_bucket.bucket.arn}/*"
         ]
       }
