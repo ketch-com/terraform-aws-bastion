@@ -92,7 +92,9 @@ resource "aws_s3_bucket_policy" "github_bucket_policy" {
       "Action": [
         "s3:GetObject",
         "s3:PutObject",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion"
       ],
       "Resource": [
         "${aws_s3_bucket.bucket.arn}",
