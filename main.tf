@@ -26,14 +26,13 @@ resource "aws_s3_bucket" "bucket" {
   server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.key.id
+        kms_master_key_id = aws_kms_key.key.arn
         sse_algorithm     = "aws:kms"
       }
     }
   }
 
-  bucket_key_enabled = true
-  
+
   force_destroy = var.bucket_force_destroy
 
   versioning {
@@ -122,6 +121,8 @@ resource "aws_s3_bucket_public_access_block" "bucket_public_block" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+
+  bucket_key_enabled      = true
 }
 
 resource "aws_security_group" "bastion_host_security_group" {
