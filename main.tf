@@ -122,7 +122,6 @@ resource "aws_s3_bucket_public_access_block" "bucket_public_block" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 
-  bucket_key_enabled      = true
 }
 
 resource "aws_security_group" "bastion_host_security_group" {
