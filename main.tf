@@ -216,7 +216,9 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
   statement {
     actions = [
       "s3:GetObject",
-      "s3:PutObject"
+      "s3:PutObject",
+      "kms:Encrypt",
+      "kms:Decrypt"
     ]
     resources = ["${aws_s3_bucket.bucket.arn}/*"]
 
