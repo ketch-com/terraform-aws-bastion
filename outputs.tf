@@ -3,15 +3,15 @@ output "bastion_host_security_group" {
   value       = aws_security_group.bastion_host_security_group[*].id
 }
 
-output "bucket_kms_key_alias" {
-  description = "The alias name of the "
-  value       = aws_kms_alias.alias.name
-}
+# output "bucket_kms_key_alias" {
+#   description = "The alias name of the "
+#   value       = aws_kms_alias.alias.name
+# }
 
-output "bucket_kms_key_arn" {
-  description = "The Amazon Resource Name (ARN) of the KMS key"
-  value       = aws_kms_key.key.arn
-}
+# output "bucket_kms_key_arn" {
+#   description = "The Amazon Resource Name (ARN) of the KMS key"
+#   value       = aws_kms_key.key.arn
+# }
 
 output "bucket_name" {
   description = "The name of the bucket where logs are sent"
