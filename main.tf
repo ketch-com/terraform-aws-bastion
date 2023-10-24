@@ -20,6 +20,15 @@ resource "aws_s3_bucket" "bucket" {
     enabled = var.bucket_versioning
   }
 
+  server_side_encryption_configuration {
+      rule {
+        apply_server_side_encryption_by_default {
+          sse_algorithm = "AES256"
+        }
+      }
+    }
+
+
   lifecycle_rule {
     id      = "log"
     enabled = var.log_auto_clean
@@ -204,6 +213,20 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
     }
   }
 
+  statement {
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject"
+    ]
+    resources = ["${aws_s3_bucket.bucket.arn}/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-server-side-encryption"
+      values   = ["AES256"]
+    }
+  }
+  
 }
 
 resource "aws_iam_policy" "bastion_host_policy" {
