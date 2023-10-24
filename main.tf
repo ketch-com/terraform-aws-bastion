@@ -21,12 +21,12 @@ resource "aws_s3_bucket" "bucket" {
   }
 
   server_side_encryption_configuration {
-      rule {
-        apply_server_side_encryption_by_default {
-          sse_algorithm = "AES256"
-        }
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
       }
     }
+  }
 
 
   lifecycle_rule {
@@ -98,9 +98,9 @@ EOF
 
 ##
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
-  bucket     = aws_s3_bucket.bucket.id
-  key        = "public-keys/README.txt"
-  content    = "Drop here the ssh public keys of the instances you want to control"
+  bucket  = aws_s3_bucket.bucket.id
+  key     = "public-keys/README.txt"
+  content = "Drop here the ssh public keys of the instances you want to control"
 }
 
 resource "aws_s3_bucket_public_access_block" "bucket_public_block" {
@@ -226,7 +226,7 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
       values   = ["AES256"]
     }
   }
-  
+
 }
 
 resource "aws_iam_policy" "bastion_host_policy" {
