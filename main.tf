@@ -10,15 +10,6 @@ data "template_file" "user_data" {
   }
 }
 
-# resource "aws_kms_key" "key" {
-#   tags = merge(var.tags)
-# }
-
-# resource "aws_kms_alias" "alias" {
-#   name          = "alias/${replace(var.bucket_name, ".", "_")}"
-#   target_key_id = aws_kms_key.key.arn
-# }
-
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
   acl    = "private"
@@ -101,7 +92,6 @@ resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
   bucket     = aws_s3_bucket.bucket.id
   key        = "public-keys/README.txt"
   content    = "Drop here the ssh public keys of the instances you want to control"
-  #kms_key_id = aws_kms_key.key.arn
 }
 
 resource "aws_s3_bucket_public_access_block" "bucket_public_block" {
@@ -213,15 +203,6 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
       variable = "s3:prefix"
     }
   }
-
-  # statement {
-  #   actions = [
-
-  #     "kms:Encrypt",
-  #     "kms:Decrypt"
-  #   ]
-  #   resources = [aws_kms_key.key.arn]
-  # }
 
 }
 
