@@ -28,9 +28,6 @@ variable "tags" {
   type        = map(string)
 }
 
-variable "region" {
-}
-
 variable "cidrs" {
   description = "List of CIDRs than can access to the bastion. Default : 0.0.0.0/0"
   type        = list(string)
