@@ -1,15 +1,3 @@
-data "template_file" "user_data" {
-  template = file("${path.module}/user_data.sh")
-
-  vars = {
-    aws_region              = data.aws_region.current.name
-    bucket_name             = var.bucket_name
-    extra_user_data_content = var.extra_user_data_content
-    allow_ssh_commands      = var.allow_ssh_commands
-    public_ssh_port         = var.public_ssh_port
-  }
-}
-
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
   acl    = "private"
@@ -317,7 +305,13 @@ resource "aws_launch_template" "bastion_launch_template" {
 
   key_name = var.bastion_host_key_pair
 
-  user_data = base64encode(data.template_file.user_data.rendered)
+  user_data = base64encode(templatefile("${path.module}/user_data.sh", {
+    aws_region              = data.aws_region.current.name
+    bucket_name             = var.bucket_name
+    extra_user_data_content = var.extra_user_data_content
+    allow_ssh_commands      = var.allow_ssh_commands
+    public_ssh_port         = var.public_ssh_port
+  }))
 
   tag_specifications {
     resource_type = "instance"
