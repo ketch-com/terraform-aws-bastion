@@ -6,37 +6,28 @@ data "template_file" "user_data" {
     bucket_name             = var.bucket_name
     extra_user_data_content = var.extra_user_data_content
     allow_ssh_commands      = var.allow_ssh_commands
+    public_ssh_port         = var.public_ssh_port
   }
-}
-
-resource "aws_kms_key" "key" {
-  tags = merge(var.tags)
-}
-
-resource "aws_kms_alias" "alias" {
-  name          = "alias/${var.bucket_name}"
-  target_key_id = aws_kms_key.key.arn
 }
 
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
-  acl    = "bucket-owner-full-control"
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.key.id
-        sse_algorithm     = "aws:kms"
-      }
-    }
-  }
-
+  acl    = "private"
 
   force_destroy = var.bucket_force_destroy
 
   versioning {
     enabled = var.bucket_versioning
   }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+
 
   lifecycle_rule {
     id      = "log"
@@ -65,11 +56,19 @@ resource "aws_s3_bucket" "bucket" {
   }
 
   tags = merge(var.tags)
+
+  dynamic "logging" {
+    for_each = length(keys(var.bucket_logging)) == 0 ? [] : [var.bucket_logging]
+
+    content {
+      target_bucket = logging.value.target_bucket
+      target_prefix = lookup(logging.value, "target_prefix", null)
+    }
+  }
 }
 
 resource "aws_s3_bucket_policy" "github_bucket_policy" {
-  bucket = aws_s3_bucket.bucket.arn
-
+  bucket = var.bucket_name
   policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -83,11 +82,13 @@ resource "aws_s3_bucket_policy" "github_bucket_policy" {
       "Action": [
         "s3:GetObject",
         "s3:PutObject",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion"
       ],
       "Resource": [
-        "arn:aws:s3:::${aws_s3_bucket.bucket.name}",
-        "arn:aws:s3:::${aws_s3_bucket.bucket.name}/*",
+        "${aws_s3_bucket.bucket.arn}",
+        "${aws_s3_bucket.bucket.arn}/*"
       ]
     }
   ]
@@ -95,14 +96,24 @@ resource "aws_s3_bucket_policy" "github_bucket_policy" {
 EOF
 }
 
+##
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
-  bucket     = aws_s3_bucket.bucket.id
-  key        = "public-keys/README.txt"
-  content    = "Drop here the ssh public keys of the instances you want to control"
-  kms_key_id = aws_kms_key.key.arn
+  bucket  = aws_s3_bucket.bucket.id
+  key     = "public-keys/README.txt"
+  content = "Drop here the ssh public keys of the instances you want to control"
+}
+
+resource "aws_s3_bucket_public_access_block" "bucket_public_block" {
+  bucket = aws_s3_bucket.bucket.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_security_group" "bastion_host_security_group" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Enable SSH access to the bastion host from external via SSH port"
   name        = "${local.name_prefix}-host"
   vpc_id      = var.vpc_id
@@ -111,6 +122,7 @@ resource "aws_security_group" "bastion_host_security_group" {
 }
 
 resource "aws_security_group_rule" "ingress_bastion" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Incoming traffic to bastion"
   type        = "ingress"
   from_port   = var.public_ssh_port
@@ -118,10 +130,11 @@ resource "aws_security_group_rule" "ingress_bastion" {
   protocol    = "TCP"
   cidr_blocks = concat(data.aws_subnet.subnets.*.cidr_block, var.cidrs)
 
-  security_group_id = aws_security_group.bastion_host_security_group.id
+  security_group_id = local.security_group
 }
 
 resource "aws_security_group_rule" "egress_bastion" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Outgoing traffic from bastion to instances"
   type        = "egress"
   from_port   = "0"
@@ -129,7 +142,7 @@ resource "aws_security_group_rule" "egress_bastion" {
   protocol    = "-1"
   cidr_blocks = ["0.0.0.0/0"]
 
-  security_group_id = aws_security_group.bastion_host_security_group.id
+  security_group_id = local.security_group
 }
 
 resource "aws_security_group" "private_instances_security_group" {
@@ -143,11 +156,11 @@ resource "aws_security_group" "private_instances_security_group" {
 resource "aws_security_group_rule" "ingress_instances" {
   description = "Incoming traffic from bastion"
   type        = "ingress"
-  from_port   = var.public_ssh_port
-  to_port     = var.public_ssh_port
+  from_port   = var.private_ssh_port
+  to_port     = var.private_ssh_port
   protocol    = "TCP"
 
-  source_security_group_id = aws_security_group.bastion_host_security_group.id
+  source_security_group_id = local.security_group
 
   security_group_id = aws_security_group.private_instances_security_group.id
 }
@@ -202,18 +215,25 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
 
   statement {
     actions = [
-
+      "s3:GetObject",
+      "s3:PutObject",
       "kms:Encrypt",
       "kms:Decrypt"
     ]
-    resources = [aws_kms_key.key.arn]
+    resources = ["${aws_s3_bucket.bucket.arn}/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-server-side-encryption"
+      values   = ["AES256"]
+    }
   }
 
 }
 
 resource "aws_iam_policy" "bastion_host_policy" {
-  name_prefix   = "BastionHost"
-  policy = data.aws_iam_policy_document.bastion_host_policy_document.json
+  name_prefix = var.bastion_iam_policy_name
+  policy      = data.aws_iam_policy_document.bastion_host_policy_document.json
 }
 
 resource "aws_iam_role_policy_attachment" "bastion_host" {
@@ -279,13 +299,13 @@ resource "aws_iam_instance_profile" "bastion_host_profile" {
 resource "aws_launch_template" "bastion_launch_template" {
   name_prefix   = local.name_prefix
   image_id      = var.bastion_ami != "" ? var.bastion_ami : data.aws_ami.amazon-linux-2.id
-  instance_type = "t3.nano"
+  instance_type = var.instance_type
   monitoring {
     enabled = true
   }
   network_interfaces {
     associate_public_ip_address = var.associate_public_ip_address
-    security_groups             = [aws_security_group.bastion_host_security_group.id]
+    security_groups             = concat([local.security_group], var.bastion_additional_security_groups)
     delete_on_termination       = true
   }
   iam_instance_profile {
@@ -297,12 +317,12 @@ resource "aws_launch_template" "bastion_launch_template" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(map("Name", var.bastion_launch_template_name), merge(var.tags))
+    tags          = merge({ Name = var.bastion_launch_template_name }, merge(var.tags))
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = merge(map("Name", var.bastion_launch_template_name), merge(var.tags))
+    tags          = merge({ Name = var.bastion_launch_template_name }, merge(var.tags))
   }
 
   lifecycle {
@@ -335,11 +355,17 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
   ]
 
   tags = concat(
-    list(map("key", "Name", "value", "ASG-${local.name_prefix}", "propagate_at_launch", true)),
+    [{
+      key = "Name"
+      value = "ASG-${local.name_prefix}"
+      propagate_at_launch = true
+    }],
     local.tags_asg_format
   )
 
   lifecycle {
     create_before_destroy = true
   }
+
+  depends_on = [aws_s3_bucket.bucket]
 }
