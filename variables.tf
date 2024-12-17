@@ -160,3 +160,12 @@ variable "cross_zone_lb" {
   type        = bool
   default     = false
 }
+
+variable "max_instance_lifetime" {
+  description = <<-DESC
+    (Optional) Maximum amount of time, in seconds, that an instance can be in service,
+    values must be either equal to 0 or between 86400 and 31536000 seconds.
+  DESC
+  type        = number
+  default     = 0
+}

@@ -360,6 +360,8 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
     "OldestLaunchConfiguration",
   ]
 
+  max_instance_lifetime = var.max_instance_lifetime
+
   dynamic "tag" {
     for_each = var.tags
 
