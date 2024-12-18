@@ -1,15 +1,3 @@
-data "template_file" "user_data" {
-  template = file("${path.module}/user_data.sh")
-
-  vars = {
-    aws_region              = var.region
-    bucket_name             = var.bucket_name
-    extra_user_data_content = var.extra_user_data_content
-    allow_ssh_commands      = var.allow_ssh_commands
-    public_ssh_port         = var.public_ssh_port
-  }
-}
-
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
   acl    = "private"
@@ -300,20 +288,30 @@ resource "aws_launch_template" "bastion_launch_template" {
   name_prefix   = local.name_prefix
   image_id      = var.bastion_ami != "" ? var.bastion_ami : data.aws_ami.amazon-linux-2.id
   instance_type = var.instance_type
+
   monitoring {
     enabled = true
   }
+
   network_interfaces {
     associate_public_ip_address = var.associate_public_ip_address
     security_groups             = concat([local.security_group], var.bastion_additional_security_groups)
     delete_on_termination       = true
   }
+
   iam_instance_profile {
     name = aws_iam_instance_profile.bastion_host_profile.name
   }
+
   key_name = var.bastion_host_key_pair
 
-  user_data = base64encode(data.template_file.user_data.rendered)
+  user_data = base64encode(templatefile("${path.module}/user_data.sh", {
+    aws_region              = data.aws_region.current.name
+    bucket_name             = var.bucket_name
+    extra_user_data_content = var.extra_user_data_content
+    allow_ssh_commands      = var.allow_ssh_commands
+    public_ssh_port         = var.public_ssh_port
+  }))
 
   tag_specifications {
     resource_type = "instance"
@@ -332,10 +330,12 @@ resource "aws_launch_template" "bastion_launch_template" {
 
 resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
   name_prefix = "ASG-${local.name_prefix}"
+
   launch_template {
     id      = aws_launch_template.bastion_launch_template.id
     version = "$Latest"
   }
+
   max_size         = var.bastion_instance_count
   min_size         = var.bastion_instance_count
   desired_capacity = var.bastion_instance_count
@@ -354,14 +354,23 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
     "OldestLaunchConfiguration",
   ]
 
-  tags = concat(
-    [{
-      key = "Name"
-      value = "ASG-${local.name_prefix}"
+  max_instance_lifetime = var.max_instance_lifetime
+
+  dynamic "tag" {
+    for_each = var.tags
+
+    content {
+      key                 = tag.key
+      value               = tag.value
       propagate_at_launch = true
-    }],
-    local.tags_asg_format
-  )
+    }
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "ASG-${local.name_prefix}"
+    propagate_at_launch = true
+  }
 
   lifecycle {
     create_before_destroy = true

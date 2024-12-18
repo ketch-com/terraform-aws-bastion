@@ -28,9 +28,6 @@ variable "tags" {
   type        = map(string)
 }
 
-variable "region" {
-}
-
 variable "cidrs" {
   description = "List of CIDRs than can access to the bastion. Default : 0.0.0.0/0"
   type        = list(string)
@@ -162,4 +159,13 @@ variable "cross_zone_lb" {
   description = "If true, cross-zone load balancing of the load balancer will be enabled."
   type        = bool
   default     = false
+}
+
+variable "max_instance_lifetime" {
+  description = <<-DESC
+    (Optional) Maximum amount of time, in seconds, that an instance can be in service,
+    values must be either equal to 0 or between 86400 and 31536000 seconds.
+  DESC
+  type        = number
+  default     = 0
 }
