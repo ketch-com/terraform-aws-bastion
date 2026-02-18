@@ -1,31 +1,43 @@
 resource "aws_s3_bucket" "bucket" {
-  bucket = var.bucket_name
-  acl    = "private"
-
+  bucket        = var.bucket_name
   force_destroy = var.bucket_force_destroy
 
-  versioning {
-    enabled = var.bucket_versioning
-  }
+  tags = merge(var.tags)
+}
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
+resource "aws_s3_bucket_acl" "bucket" {
+  bucket = aws_s3_bucket.bucket.id
+
+  acl = "private"
+}
+
+resource "aws_s3_bucket_versioning" "bucket" {
+  bucket = aws_s3_bucket.bucket.id
+
+  versioning_configuration {
+    status = var.bucket_versioning ? "Enabled" : "Suspended"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "bucket" {
+  bucket = aws_s3_bucket.bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
     }
   }
+}
 
+resource "aws_s3_bucket_lifecycle_configuration" "bucket" {
+  bucket = aws_s3_bucket.bucket.id
 
-  lifecycle_rule {
-    id      = "log"
-    enabled = var.log_auto_clean
+  rule {
+    id     = "log"
+    status = var.log_auto_clean ? "Enabled" : "Disabled"
 
-    prefix = "logs/"
-
-    tags = {
-      rule      = "log"
-      autoclean = var.log_auto_clean
+    filter {
+      prefix = "logs/"
     }
 
     transition {
@@ -42,21 +54,19 @@ resource "aws_s3_bucket" "bucket" {
       days = var.log_expiry_days
     }
   }
+}
 
-  tags = merge(var.tags)
+resource "aws_s3_bucket_logging" "bucket" {
+  count = length(keys(var.bucket_logging)) > 0 ? 1 : 0
 
-  dynamic "logging" {
-    for_each = length(keys(var.bucket_logging)) == 0 ? [] : [var.bucket_logging]
+  bucket = aws_s3_bucket.bucket.id
 
-    content {
-      target_bucket = logging.value.target_bucket
-      target_prefix = lookup(logging.value, "target_prefix", null)
-    }
-  }
+  target_bucket = var.bucket_logging["target_bucket"]
+  target_prefix = lookup(var.bucket_logging, "target_prefix", null)
 }
 
 resource "aws_s3_bucket_policy" "github_bucket_policy" {
-  bucket = var.bucket_name
+  bucket = aws_s3_bucket.bucket.id
   policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -85,7 +95,7 @@ EOF
 }
 
 ##
-resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
+resource "aws_s3_object" "bucket_public_keys_readme" {
   bucket  = aws_s3_bucket.bucket.id
   key     = "public-keys/README.txt"
   content = "Drop here the ssh public keys of the instances you want to control"
